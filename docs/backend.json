@@ -1,0 +1,244 @@
+{
+  "entities": {
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user of the application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the user (matches auth uid)."
+        },
+        "email": {
+          "type": "string",
+          "description": "The user's email address.",
+          "format": "email"
+        },
+        "name": {
+          "type": "string",
+          "description": "The user's display name."
+        },
+        "avatarUrl": {
+          "type": "string",
+          "description": "URL of the user's profile picture."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp indicating when the user account was created.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "email",
+        "name",
+        "createdAt"
+      ]
+    },
+    "GroupBuyOrder": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "GroupBuyOrder",
+      "type": "object",
+      "description": "Represents a group buy order initiated by a user.",
+      "properties": {
+        "initiatorId": {
+          "type": "string",
+          "description": "Reference to User who initiated the order."
+        },
+        "initiatorName": {
+            "type": "string",
+            "description": "Denormalized name of the initiator for display purposes."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the group buy order."
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of the group buy order."
+        },
+        "deadline": {
+          "type": "string",
+          "description": "The deadline for the group buy order.",
+          "format": "date-time"
+        },
+        "targetAmount": {
+          "type": "number",
+          "description": "Target amount for the group buy order."
+        },
+        "visibility": {
+            "type": "string",
+            "enum": ["public", "private"]
+        },
+        "status": {
+            "type": "string",
+            "enum": ["open", "closed", "archived"]
+        },
+        "enableStatusTracking": {
+            "type": "boolean"
+        },
+        "image": {
+            "type": "object",
+            "properties": {
+                "src": {"type": "string"},
+                "alt": {"type": "string"},
+                "hint": {"type": "string"}
+            }
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp indicating when the group buy order was created.",
+          "format": "date-time"
+        },
+        "participantIds": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "List of user IDs participating in the order. For query purposes."
+        }
+      },
+      "required": [
+        "initiatorId",
+        "initiatorName",
+        "name",
+        "visibility",
+        "status",
+        "createdAt"
+      ]
+    },
+    "Item": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Item",
+      "type": "object",
+      "description": "Represents an item available for purchase in a group buy order.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of the item."
+        },
+        "price": {
+          "type": "number",
+          "description": "Price of the item."
+        },
+        "maxQuantity": {
+          "type": "number",
+          "description": "Available quantity of the item."
+        },
+        "images": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "src": { "type": "string" },
+                    "alt": { "type": "string" }
+                }
+            }
+        },
+        "attributes": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "name": { "type": "string" },
+                    "options": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "value": { "type": "string" },
+                                "price": { "type": "number" }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+      },
+      "required": [
+        "name",
+        "price"
+      ]
+    },
+    "Participant": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Participant",
+      "type": "object",
+      "description": "Represents a user's participation in a group buy, including their ordered items.",
+      "properties": {
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "userAvatar": { "type": "string" },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "itemId": { "type": "string" },
+              "itemName": { "type": "string" },
+              "itemPrice": { "type": "number" },
+              "quantity": { "type": "number" },
+              "selectedAttributes": { "type": "object" }
+            }
+          }
+        },
+        "totalCost": { "type": "number" }
+      },
+      "required": ["userId", "userName", "totalCost"]
+    },
+    "StatusUpdate": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "StatusUpdate",
+      "type": "object",
+      "description": "A status update for a group buy order.",
+      "properties": {
+        "message": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["message", "createdAt"]
+    }
+  },
+  "auth": {
+    "providers": [
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "schema": { "$ref": "#/entities/User" },
+          "description": "Stores user profiles."
+        }
+      },
+      {
+        "path": "/groupBuyOrders/{orderId}",
+        "definition": {
+          "schema": { "$ref": "#/entities/GroupBuyOrder" },
+          "description": "Stores all group buy orders, both public and private."
+        }
+      },
+      {
+        "path": "/groupBuyOrders/{orderId}/items/{itemId}",
+        "definition": {
+          "schema": { "$ref": "#/entities/Item" },
+          "description": "Items available within a specific group buy order."
+        }
+      },
+      {
+        "path": "/groupBuyOrders/{orderId}/participants/{userId}",
+        "definition": {
+          "schema": { "$ref": "#/entities/Participant" },
+          "description": "Stores a user's participation details for a specific order."
+        }
+      },
+      {
+        "path": "/groupBuyOrders/{orderId}/statusUpdates/{statusUpdateId}",
+        "definition": {
+          "schema": { "$ref": "#/entities/StatusUpdate" },
+          "description": "Timeline of status updates for a specific order."
+        }
+      }
+    ]
+  }
+}

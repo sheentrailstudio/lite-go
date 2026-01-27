@@ -1,3 +1,64 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "login-background",
+      "description": "登入畫面的抽象漸層背景",
+      "imageUrl": "https://images.unsplash.com/photo-1604079628040-94301bb21b91?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxhYnN0cmFjdCUyMGdyYWRpZW50fGVufDB8fHx8MTc2OTM4NzI1Nnww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "abstract gradient"
+    },
+    {
+      "id": "user-avatar-1",
+      "description": "Sarah Lee 的頭像",
+      "imageUrl": "https://images.unsplash.com/flagged/photo-1559855603-ce4c8f480d76?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8d29tYW4lMjBzbWlsaW5nfGVufDB8fHx8MTc2OTQ0MDQ2NHww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "woman smiling"
+    },
+    {
+      "id": "user-avatar-2",
+      "description": "John Doe 的頭像",
+      "imageUrl": "https://images.unsplash.com/photo-1624395213043-fa2e123b2656?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxtYW4lMjBwb3J0cmFpdHxlbnwwfHx8fDE3Njk0NDE4OTV8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "man portrait"
+    },
+    {
+      "id": "user-avatar-3",
+      "description": "Mike P. 的頭像",
+      "imageUrl": "https://images.unsplash.com/photo-1627813173262-fa4cd4fa7d5e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxwZXJzb24lMjBnbGFzc2VzfGVufDB8fHx8MTc2OTQ3NjIzNnww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "person glasses"
+    },
+    {
+      "id": "user-avatar-4",
+      "description": "Emily R. 的頭像",
+      "imageUrl": "https://images.unsplash.com/photo-1557053908-4793c484d06f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8d29tYW4lMjBwb3J0cmFpdHxlbnwwfHx8fDE3Njk0MDk2Mzd8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "woman portrait"
+    },
+    {
+      "id": "order-image-1",
+      "description": "披薩訂單圖片",
+      "imageUrl": "https://images.unsplash.com/photo-1584365685547-9a5fb6f3a70c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8cGl6emElMjBzbGljZXxlbnwwfHx8fDE3Njk0MzIxMjZ8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "pizza slice"
+    },
+    {
+      "id": "order-image-2",
+      "description": "辦公用品圖片",
+      "imageUrl": "https://images.unsplash.com/photo-1605484605767-3248b910973e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8b2ZmaWNlJTIwc3VwcGxpZXN8ZW58MHx8fHwxNzY5NDEzMzI0fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "office supplies"
+    },
+    {
+      "id": "order-image-3",
+      "description": "咖啡豆圖片",
+      "imageUrl": "https://images.unsplash.com/photo-1690983326555-8b8e27843a32?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxjb2ZmZWUlMjBiZWFuc3xlbnwwfHx8fDE3NjkzODcxNDB8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "coffee beans"
+    },
+    {
+      "id": "item-tshirt-1",
+      "description": "黑色T恤正面",
+      "imageUrl": "https://images.unsplash.com/photo-1657364891013-8324e4db9dc9?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxibGFjayUyMHQtc2hpcnR8ZW58MHx8fHwxNzY5NDc4NDk4fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "black t-shirt"
+    },
+    {
+      "id": "item-tshirt-2",
+      "description": "黑色T恤背面",
+      "imageUrl": "https://images.unsplash.com/photo-1711641066067-3c1d03492345?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxibGFjayUyMHQtc2hpcnR8ZW58MHx8fHwxNzY5NDc4NDk4fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "black t-shirt"
+    }
+  ]
 }

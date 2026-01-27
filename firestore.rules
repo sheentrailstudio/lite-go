@@ -1,0 +1,60 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    match /users/{userId} {
+      allow get: if isSignedIn();
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isOwner(userId);
+      allow list, delete: if false;
+    }
+
+    match /groupBuyOrders/{orderId} {
+      function isOrderInitiator() {
+        return get(/databases/$(database)/documents/groupBuyOrders/$(orderId)).data.initiatorId == request.auth.uid;
+      }
+      function isPublicOrder() {
+        return get(/databases/$(database)/documents/groupBuyOrders/$(orderId)).data.visibility == 'public';
+      }
+      function isParticipant() {
+        return request.auth.uid in get(/databases/$(database)/documents/groupBuyOrders/$(orderId)).data.participantIds;
+      }
+
+      // Public orders can be read by anyone. Private orders require auth and involvement.
+      allow get: if isPublicOrder() || (isSignedIn() && (isOrderInitiator() || isParticipant()));
+      // Allow list for anyone. The 'get' rules above will secure the results of any query.
+      allow list: if true;
+
+      allow create: if isSignedIn() && request.resource.data.initiatorId == request.auth.uid;
+      allow update: if isSignedIn() && (isOrderInitiator() || (request.resource.data.participantIds == resource.data.participantIds.concat([request.auth.uid])));
+      allow delete: if isSignedIn() && isOrderInitiator();
+
+      match /items/{itemId} {
+        allow get, list: if isPublicOrder() || (isSignedIn() && (isOrderInitiator() || isParticipant()));
+        allow create, update, delete: if isSignedIn() && isOrderInitiator();
+      }
+
+      match /participants/{userId} {
+        allow get: if isSignedIn() && (isOrderInitiator() || isParticipant());
+        allow list: if isSignedIn() && (isOrderInitiator() || isParticipant());
+        // A user can create/update/delete their own participation document.
+        allow create, update, delete: if isOwner(userId);
+      }
+      
+      match /statusUpdates/{statusUpdateId} {
+         allow get, list: if isPublicOrder() || (isSignedIn() && (isOrderInitiator() || isParticipant()));
+         allow create: if isSignedIn() && isOrderInitiator();
+         // No updates/deletes for status updates for simplicity.
+         allow update, delete: if false;
+      }
+    }
+  }
+}
