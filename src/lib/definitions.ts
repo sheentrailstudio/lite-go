@@ -65,6 +65,7 @@ export type GroupBuyOrderDocument = {
   initiatorName: string;
   deadline?: string;
   targetAmount?: number;
+  maxParticipants?: number;
   createdAt: Timestamp | string;
   image?: {
     src: string;

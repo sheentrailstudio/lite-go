@@ -1,6 +1,6 @@
 'use client';
 
-import { notFound } from 'next/navigation';
+import { notFound, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import {
   Card,
@@ -20,10 +20,18 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
-import { Clock, DollarSign, Users, Package, Share2, Globe, Lock, Loader2 } from 'lucide-react';
+import { Clock, DollarSign, Users, Package, Share2, Globe, Lock, Loader2, Edit, CalendarDays, MoreHorizontal } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import type { Item, User, CartItem, Order, GroupBuyOrderDocument, Participant, StatusUpdate } from '@/lib/definitions';
 import { useToast } from '@/hooks/use-toast';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import {
   Carousel,
   CarouselContent,
@@ -32,6 +40,8 @@ import {
   CarouselPrevious,
 } from "@/components/ui/carousel"
 import OrderStatusTracker from '@/components/orders/order-status-tracker';
+import EditParticipantDialog from '@/components/orders/edit-participant-dialog';
+import EditOrderSettingsDialog from '@/components/orders/edit-order-settings-dialog';
 import { useDoc, useCollection, useUser, useFirestore, useMemoFirebase, updateDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase';
 import { doc, collection, getDoc } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
@@ -52,13 +62,14 @@ const renderSelectedAttributes = (cartItem: CartItem) => {
     })
     .join(', ');
 
-  return <span className="text-xs">({attributeText})</span>;
+  return <span className="text-xs text-muted-foreground">({attributeText})</span>;
 };
 
 
 function OrderDetailsDisplay({ order, onJoinOrder }: { order: Order, onJoinOrder: () => void }) {
   const { toast } = useToast();
   const { user } = useUser();
+  const router = useRouter();
 
   const orderUrl = typeof window !== 'undefined' ? window.location.href : '';
 
@@ -72,8 +83,10 @@ function OrderDetailsDisplay({ order, onJoinOrder }: { order: Order, onJoinOrder
   };
   
   const isParticipant = order.participants.some(p => p.id === user?.uid);
+  const isInitiator = user?.uid === order.initiatorId;
 
   const totalCost = order.participants.reduce((sum, p) => sum + p.totalCost, 0);
+  const myTotalCost = isParticipant ? order.participants.find(p => p.id === user?.uid)?.totalCost || 0 : 0;
 
   const itemsSummary = new Map<string, { item: Item, totalQuantity: number, participants: { user: User, quantity: number }[] }>();
 
@@ -94,244 +107,338 @@ function OrderDetailsDisplay({ order, onJoinOrder }: { order: Order, onJoinOrder
 
   const sortedItemsSummary = Array.from(itemsSummary.values()).sort((a,b) => b.totalQuantity - a.totalQuantity);
 
-  // In a real app, this would be a real "add to cart" flow.
-  // For now, clicking "Join" will just add the user as a participant with a placeholder item.
+  // Dialog State
+  const [editingParticipant, setEditingParticipant] = useState<Participant | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
+
   const handleJoin = () => {
     onJoinOrder();
   };
 
+  const handleEditOrder = () => {
+      setIsSettingsDialogOpen(true);
+  }
+
+  const handleEditMyOrder = () => {
+      const myParticipant = order.participants.find(p => p.id === user?.uid);
+      if (myParticipant) {
+          setEditingParticipant(myParticipant);
+          setIsEditDialogOpen(true);
+      }
+  }
+
+  const handleEditParticipant = (participantId: string) => {
+      const targetParticipant = order.participants.find(p => p.id === participantId);
+      if (targetParticipant) {
+          setEditingParticipant(targetParticipant);
+          setIsEditDialogOpen(true);
+      }
+  }
+
   return (
-    <div className="grid gap-4 md:grid-cols-[1fr_250px] lg:grid-cols-3 lg:gap-8">
-      <div className="grid auto-rows-max items-start gap-4 lg:col-span-2 lg:gap-8">
-        <Card>
-          <CardHeader className="flex flex-row items-start gap-4">
-            {order.image && (
-              <Image
-                src={order.image.src}
-                alt={order.image.alt}
-                width={84}
-                height={84}
-                className="rounded-lg object-cover"
-                data-ai-hint={order.image.hint}
-              />
+    <div className="space-y-6 pb-20">
+      <EditParticipantDialog 
+        isOpen={isEditDialogOpen}
+        onClose={() => {
+            setIsEditDialogOpen(false);
+            setEditingParticipant(null);
+        }}
+        order={order}
+        participant={editingParticipant!}
+        isInitiatorEditing={editingParticipant?.id !== user?.uid}
+      />
+      
+      <EditOrderSettingsDialog
+        isOpen={isSettingsDialogOpen}
+        onClose={() => setIsSettingsDialogOpen(false)}
+        order={order}
+      />
+
+      {/* Header Section */}
+      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div className="space-y-1.5">
+            <div className="flex items-center gap-2">
+                <Badge variant={order.status === 'open' ? 'default' : 'secondary'} className="capitalize">
+                    {order.status === 'open' ? '進行中' : '已結束'}
+                </Badge>
+                <Badge variant="outline" className="flex items-center gap-1.5 py-0.5 capitalize text-muted-foreground">
+                    {order.visibility === 'public' ? <Globe className="h-3 w-3" /> : <Lock className="h-3 w-3" />}
+                    {order.visibility === 'public' ? '公開' : '私人'}
+                </Badge>
+            </div>
+            <h1 className="text-3xl font-bold tracking-tight text-foreground">{order.name}</h1>
+            <p className="text-muted-foreground max-w-2xl">{order.description}</p>
+        </div>
+        <div className="flex items-center gap-2">
+            {isInitiator && (
+                <Button variant="outline" size="sm" onClick={handleEditOrder}>
+                    <Edit className="mr-2 h-4 w-4" /> 編輯團購
+                </Button>
             )}
-            <div className="flex-1">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-2xl font-headline">{order.name}</CardTitle>
-                <div className="flex items-center gap-2">
-                    <Badge variant={order.status === 'open' ? 'secondary' : 'outline'} className="capitalize">{order.status === 'open' ? '進行中' : '已結束'}</Badge>
-                    <Badge variant="outline" className="flex items-center gap-1.5 py-1 capitalize">
-                        {order.visibility === 'public' ? <Globe className="h-3 w-3" /> : <Lock className="h-3 w-3" />}
-                        {order.visibility === 'public' ? '公開' : '私人'}
-                    </Badge>
+             <Button variant="outline" size="icon" onClick={handleShare}>
+                <Share2 className="h-4 w-4" />
+            </Button>
+        </div>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
+        <Card className="bg-muted/40 border-none shadow-none">
+            <CardContent className="p-4 flex flex-row items-center gap-4">
+                <div className="bg-primary/10 p-2 rounded-full text-primary">
+                    <CalendarDays className="h-5 w-5" />
                 </div>
-              </div>
-              <CardDescription>{order.description}</CardDescription>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
-              {order.deadline && (
-                <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4" />
-                  <span>截止日期: {format(parseISO(order.deadline), 'PPpp')}</span>
+                <div>
+                    <p className="text-xs text-muted-foreground font-medium">截止日期</p>
+                    <p className="text-sm font-semibold">
+                        {order.deadline ? format(parseISO(order.deadline), 'MM/dd HH:mm') : '無期限'}
+                    </p>
                 </div>
-              )}
-              {order.targetAmount && (
-                <div className="flex items-center gap-2">
-                  <DollarSign className="h-4 w-4" />
-                  <span>目標: ${order.targetAmount}</span>
-                </div>
-              )}
-              <div className="flex items-center gap-2">
-                <Users className="h-4 w-4" />
-                <span>{order.participants.length} 參與者</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Package className="h-4 w-4" />
-                <span>{order.availableItems.length} 可用項目</span>
-              </div>
-            </div>
-          </CardContent>
+            </CardContent>
         </Card>
-        
-        <OrderStatusTracker order={order} />
-        
-        <Card>
-          <CardHeader>
-            <CardTitle>可用項目</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {order.availableItems.map(item => (
-                <Card key={item.id} className="overflow-hidden">
-                    <CardContent className="p-4 grid md:grid-cols-2 gap-4">
-                         <div>
-                            {item.images && item.images.length > 0 && (
-                                <Carousel className="w-full max-w-xs mx-auto mb-4">
-                                <CarouselContent>
-                                    {item.images.map((image, index) => (
-                                    <CarouselItem key={index}>
-                                        <div className="p-1">
-                                        <Card>
-                                            <CardContent className="flex aspect-square items-center justify-center p-0">
-                                                 <Image src={image.src as string} alt={image.alt} width={200} height={200} className="rounded-md object-cover" />
-                                            </CardContent>
-                                        </Card>
-                                        </div>
-                                    </CarouselItem>
-                                    ))}
-                                </CarouselContent>
-                                {item.images.length > 1 && <>
-                                    <CarouselPrevious />
-                                    <CarouselNext />
-                                </>}
-                                </Carousel>
-                            )}
-                         </div>
-
-                         <div>
-                            <h3 className="font-semibold">{item.name}</h3>
-                            <p className="text-lg font-bold text-primary">${item.price}</p>
-                            {item.maxQuantity && <p className="text-sm text-muted-foreground">庫存: {item.maxQuantity}</p>}
-
-                            {item.attributes && item.attributes.length > 0 && (
-                                <div className="mt-4 space-y-2">
-                                    {item.attributes.map(attr => (
-                                        <div key={attr.id}>
-                                            <p className="text-sm font-medium">{attr.name}</p>
-                                            <div className="flex flex-wrap gap-2 mt-1">
-                                                {attr.options.map(opt => (
-                                                    <Badge key={opt.id} variant="outline">{opt.value}{opt.price > 0 ? ` (+$${opt.price})` : ''}</Badge>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                         </div>
-                    </CardContent>
-                </Card>
-            ))}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>參與者</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {order.participants.map(p => (
-              <div key={p.user.id} className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <Avatar>
-                    <AvatarImage src={p.user.avatarUrl} />
-                    <AvatarFallback>{p.user.name.charAt(0)}</AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <p className="font-medium">{p.user.name}</p>
-                     <ul className="text-sm text-muted-foreground list-disc pl-5 mt-1 space-y-1">
-                      {p.items.map((cartItem, idx) => (
-                        <li key={`${cartItem.item.id}-${idx}`}>
-                          {cartItem.item.name} x {cartItem.quantity} {renderSelectedAttributes(cartItem)}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
+        <Card className="bg-muted/40 border-none shadow-none">
+            <CardContent className="p-4 flex flex-row items-center gap-4">
+                 <div className="bg-primary/10 p-2 rounded-full text-primary">
+                    <Users className="h-5 w-5" />
                 </div>
-                <div className="text-right">
-                  <p className="font-semibold">${p.totalCost}</p>
+                <div>
+                    <p className="text-xs text-muted-foreground font-medium">參與人數</p>
+                    <p className="text-sm font-semibold">
+                        {order.participants.length} 
+                        {order.maxParticipants ? ` / ${order.maxParticipants}` : ''}
+                    </p>
                 </div>
-              </div>
-            ))}
-          </CardContent>
+            </CardContent>
         </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>項目訂購詳情</CardTitle>
-            <CardDescription>查看每個項目有哪些人訂購。</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Accordion type="single" collapsible className="w-full">
-              {sortedItemsSummary.map(({ item, totalQuantity, participants }) => (
-                <AccordionItem value={item.id} key={item.id}>
-                  <AccordionTrigger>
-                    <div className="flex justify-between w-full pr-4">
-                      <span>{item.name}</span>
-                      <span className="text-muted-foreground">總計: {totalQuantity}</span>
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <ul className="space-y-2 pt-2">
-                      {participants.map(p => (
-                        <li key={p.user.id} className="flex items-center justify-between text-sm">
-                          <div className="flex items-center gap-2">
-                            <Avatar className="h-6 w-6">
-                              <AvatarImage src={p.user.avatarUrl} />
-                              <AvatarFallback>{p.user.name.charAt(0)}</AvatarFallback>
-                            </Avatar>
-                            <span>{p.user.name}</span>
-                          </div>
-                          <span>訂購 {p.quantity} 個</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </AccordionContent>
-                </AccordionItem>
-              ))}
-            </Accordion>
-          </CardContent>
+        <Card className="bg-muted/40 border-none shadow-none">
+             <CardContent className="p-4 flex flex-row items-center gap-4">
+                 <div className="bg-primary/10 p-2 rounded-full text-primary">
+                    <DollarSign className="h-5 w-5" />
+                </div>
+                <div>
+                    <p className="text-xs text-muted-foreground font-medium">目前的金額</p>
+                    <p className="text-sm font-semibold">${totalCost}</p>
+                </div>
+            </CardContent>
+        </Card>
+        <Card className="bg-muted/40 border-none shadow-none">
+            <CardContent className="p-4 flex flex-row items-center gap-4">
+                <div className="bg-primary/10 p-2 rounded-full text-primary">
+                    <Package className="h-5 w-5" />
+                </div>
+                <div>
+                    <p className="text-xs text-muted-foreground font-medium">目標金額</p>
+                    <p className="text-sm font-semibold">
+                        {order.targetAmount ? `$${order.targetAmount}` : '無目標'}
+                    </p>
+                </div>
+            </CardContent>
         </Card>
       </div>
 
-      <div className="grid auto-rows-max items-start gap-4 lg:gap-8">
-        <Card>
-          <CardHeader>
-            <CardTitle>訂單摘要</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-4">
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">小計</span>
-              <span>${totalCost}</span>
+      <div className="grid gap-8 lg:grid-cols-[1fr_320px]">
+        
+        {/* Left Column */}
+        <div className="space-y-8">
+            {/* Status Tracker */}
+            <OrderStatusTracker order={order} />
+
+            {/* Available Items */}
+            <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                    <h2 className="text-xl font-semibold tracking-tight">團購項目</h2>
+                    <span className="text-sm text-muted-foreground">{order.availableItems.length} 個項目</span>
+                </div>
+                
+                <div className="grid gap-4 sm:grid-cols-2">
+                    {order.availableItems.map(item => (
+                        <Card key={item.id} className="overflow-hidden hover:shadow-md transition-shadow">
+                            <CardContent className="p-0">
+                                <div className="flex">
+                                     {item.images && item.images.length > 0 ? (
+                                        <div className="w-1/3 relative aspect-square">
+                                            <Image src={item.images[0].src as string} alt={item.name} fill className="object-cover" />
+                                        </div>
+                                     ) : (
+                                         <div className="w-1/3 bg-muted flex items-center justify-center aspect-square">
+                                             <Package className="h-8 w-8 text-muted-foreground/50" />
+                                         </div>
+                                     )}
+                                     <div className="flex-1 p-3 flex flex-col justify-between">
+                                         <div>
+                                            <h3 className="font-medium line-clamp-2">{item.name}</h3>
+                                            <div className="flex flex-wrap gap-1 mt-1.5">
+                                                {item.attributes?.map(attr => (
+                                                    <span key={attr.id} className="inline-flex items-center rounded-sm bg-muted px-1.5 py-0.5 text-xs font-medium text-muted-foreground ring-1 ring-inset ring-gray-500/10">
+                                                        {attr.name}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                         </div>
+                                         <div className="flex items-center justify-between mt-2">
+                                             <span className="font-bold text-lg">${item.price}</span>
+                                             {item.maxQuantity && <span className="text-xs text-muted-foreground">剩 {item.maxQuantity}</span>}
+                                         </div>
+                                     </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    ))}
+                </div>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">服務費</span>
-              <span>$0</span>
-            </div>
+            
             <Separator />
-            <div className="flex items-center justify-between font-semibold">
-              <span className="text-foreground">總計</span>
-              <span>${totalCost}</span>
+
+            {/* Participants List */}
+            <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                     <h2 className="text-xl font-semibold tracking-tight">參與者名單</h2>
+                </div>
+                <Card>
+                    <CardContent className="p-0">
+                        <div className="divide-y">
+                            {order.participants.map(p => (
+                            <div key={p.user.id} className="flex items-start justify-between p-4 hover:bg-muted/30 transition-colors">
+                                <div className="flex items-start gap-3">
+                                <Avatar className="mt-0.5">
+                                    <AvatarImage src={p.user.avatarUrl} />
+                                    <AvatarFallback>{p.user.name.charAt(0)}</AvatarFallback>
+                                </Avatar>
+                                <div>
+                                    <div className="flex items-center gap-2">
+                                        <p className="font-medium text-sm">{p.user.name}</p>
+                                        {p.user.id === order.initiatorId && <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4">團主</Badge>}
+                                    </div>
+                                    <div className="mt-1 space-y-1">
+                                        {p.items.map((cartItem, idx) => (
+                                            <div key={`${cartItem.item.id}-${idx}`} className="text-sm text-muted-foreground flex items-center gap-1.5">
+                                                <span className="w-4 h-4 flex items-center justify-center bg-muted rounded-full text-[10px] font-medium">{cartItem.quantity}</span>
+                                                <span>{cartItem.item.name}</span>
+                                                {renderSelectedAttributes(cartItem)}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                                </div>
+                                <div className="flex items-center gap-4">
+                                    <p className="font-semibold text-sm">${p.totalCost}</p>
+                                    {isInitiator && (
+                                         <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="ghost" className="h-8 w-8 p-0">
+                                                    <MoreHorizontal className="h-4 w-4" />
+                                                </DropdownMenuTrigger>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                <DropdownMenuLabel>管理訂單</DropdownMenuLabel>
+                                                <DropdownMenuItem onClick={() => handleEditParticipant(p.user.id)}>
+                                                    <Edit className="mr-2 h-4 w-4" /> 修改內容
+                                                </DropdownMenuItem>
+                                                <DropdownMenuSeparator />
+                                                <DropdownMenuItem className="text-destructive">
+                                                    踢出名單
+                                                </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    )}
+                                </div>
+                            </div>
+                            ))}
+                            {order.participants.length === 0 && (
+                                <div className="p-8 text-center text-muted-foreground">
+                                    目前還沒有人參加，快來搶頭香！
+                                </div>
+                            )}
+                        </div>
+                    </CardContent>
+                </Card>
             </div>
-          </CardContent>
-          <CardFooter>
-            <Button className="w-full" disabled={order.status !== 'open' || isParticipant} onClick={handleJoin}>
-              {isParticipant ? "您已加入" : "加入訂單"}
-            </Button>
-          </CardFooter>
-        </Card>
-        <Card>
-            <CardHeader>
-                <CardTitle>分享訂單</CardTitle>
-            </CardHeader>
-            <CardContent>
-                {order.visibility === 'private' ? (
-                    <p className="text-sm text-muted-foreground">
-                        此為私人訂單。分享以下連結以邀請他人加入。
-                    </p>
-                ) : (
-                    <p className="text-sm text-muted-foreground">
-                        此為公開訂單，任何人都可以搜尋並加入。
-                    </p>
-                )}
-            </CardContent>
-            <CardFooter>
-                <Button className="w-full" onClick={handleShare}>
-                    <Share2 className="mr-2 h-4 w-4" />
-                    分享連結
-                </Button>
-            </CardFooter>
-        </Card>
+            
+            {/* Item Breakdown Accordion */}
+             <div className="space-y-4">
+                <h2 className="text-xl font-semibold tracking-tight">統計詳情</h2>
+                <Card>
+                    <CardContent className="p-0">
+                        <Accordion type="single" collapsible className="w-full">
+                        {sortedItemsSummary.map(({ item, totalQuantity, participants }) => (
+                            <AccordionItem value={item.id} key={item.id} className="border-b last:border-0 px-4">
+                            <AccordionTrigger className="hover:no-underline py-3">
+                                <div className="flex justify-between w-full pr-4 items-center">
+                                <span className="font-medium text-sm">{item.name}</span>
+                                <Badge variant="secondary">{totalQuantity}</Badge>
+                                </div>
+                            </AccordionTrigger>
+                            <AccordionContent>
+                                <ul className="space-y-2 pb-3">
+                                {participants.map(p => (
+                                    <li key={p.user.id} className="flex items-center justify-between text-sm pl-2 border-l-2 border-muted">
+                                    <span className="text-muted-foreground">{p.user.name}</span>
+                                    <span>x {p.quantity}</span>
+                                    </li>
+                                ))}
+                                </ul>
+                            </AccordionContent>
+                            </AccordionItem>
+                        ))}
+                        </Accordion>
+                    </CardContent>
+                </Card>
+             </div>
+        </div>
+
+        {/* Right Column (Sticky) */}
+        <div className="space-y-6">
+            <Card className="border-2 border-primary/10 shadow-lg sticky top-6">
+                <CardHeader className="bg-muted/20 pb-4">
+                    <CardTitle className="text-lg">您的訂單</CardTitle>
+                </CardHeader>
+                <CardContent className="grid gap-4 pt-4">
+                    {isParticipant ? (
+                        <div className="space-y-4">
+                            <div className="bg-green-50 text-green-700 p-3 rounded-md text-sm flex items-center gap-2">
+                                <div className="h-2 w-2 rounded-full bg-green-500" />
+                                您已加入此團購
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <span className="text-muted-foreground">您的總金額</span>
+                                <span className="font-bold text-xl">${myTotalCost}</span>
+                            </div>
+                            <Button className="w-full" variant="outline" onClick={handleEditMyOrder}>
+                                修改我的訂單
+                            </Button>
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            <div className="text-sm text-muted-foreground">
+                                {order.status === 'open' ? '選擇您想要的商品並加入！' : '此團購已結束。'}
+                            </div>
+                            <Button 
+                                className="w-full" 
+                                size="lg" 
+                                disabled={order.status !== 'open' || (order.maxParticipants != null && order.participants.length >= order.maxParticipants)} 
+                                onClick={handleJoin}
+                            >
+                                {(order.maxParticipants != null && order.participants.length >= order.maxParticipants) ? "名額已滿" : "立即加入"}
+                            </Button>
+                        </div>
+                    )}
+                    
+                    <Separator />
+                    
+                    <div className="space-y-2">
+                         <div className="flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground">全團小計</span>
+                            <span>${totalCost}</span>
+                        </div>
+                         <div className="flex items-center justify-between text-sm font-medium">
+                            <span>全團總計</span>
+                            <span className="text-primary">${totalCost}</span>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+        </div>
       </div>
     </div>
   );
@@ -419,6 +526,16 @@ export default function OrderDetailsPage({
       return;
     }
     
+    if (composedOrder.status !== 'open') {
+         toast({ title: "訂單已結束", variant: "destructive" });
+         return;
+    }
+
+    if (composedOrder.maxParticipants && composedOrder.participants.length >= composedOrder.maxParticipants) {
+        toast({ title: "名額已滿", variant: "destructive" });
+        return;
+    }
+
     const isAlreadyParticipant = composedOrder.participantIds?.includes(user.uid);
     if(isAlreadyParticipant) {
         toast({ title: "您已經是參與者", variant: "destructive" });

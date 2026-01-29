@@ -41,6 +41,7 @@ type FormValues = {
   deadlineDate?: Date;
   deadlineTime?: string;
   targetAmount?: number;
+  maxParticipants?: number;
   items: {
     name: string;
     price: number;
@@ -193,10 +194,50 @@ function OptionsFieldArray({ itemIndex, attrIndex, control }: { itemIndex: numbe
 }
 
 
+import { imageToItemConversion } from '@/ai/flows/image-to-item-conversion';
+import { scrapeProductUrl } from '@/lib/actions/scrape-url';
+import { Loader2, Sparkles, Link as LinkIcon } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+
+// ... existing imports ...
+
 export default function CreateOrderForm() {
   const router = useRouter();
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
+  const [isScanning, setIsScanning] = useState(false);
+  const [isScraping, setIsScraping] = useState(false);
+  const [isUrlDialogOpen, setIsUrlDialogOpen] = useState(false);
+  const [urlInput, setUrlInput] = useState('');
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleScrapeUrl = async () => {
+      if (!urlInput) return;
+      
+      setIsScraping(true);
+      try {
+          const result = await scrapeProductUrl(urlInput);
+          if (result) {
+              append({
+                  name: result.title,
+                  price: result.price,
+                  images: result.image ? [result.image] : [],
+                  attributes: [],
+                  maxQuantity: undefined
+              });
+              toast({ title: "成功抓取！", description: result.title });
+              setIsUrlDialogOpen(false);
+              setUrlInput('');
+          } else {
+              toast({ title: "抓取失敗", description: "無法從該網址獲取商品資訊。", variant: "destructive" });
+          }
+      } catch (error) {
+          console.error("Scrape Error:", error);
+          toast({ title: "發生錯誤", description: "請檢查網址是否正確。", variant: "destructive" });
+      } finally {
+          setIsScraping(false);
+      }
+  }
 
   const { register, control, handleSubmit, setValue, getValues, watch } = useForm<FormValues>({
     defaultValues: {
@@ -212,6 +253,51 @@ export default function CreateOrderForm() {
     control,
     name: 'items',
   });
+
+  const handleScanMenu = async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      setIsScanning(true);
+      try {
+          const reader = new FileReader();
+          reader.onloadend = async () => {
+              const base64String = reader.result as string;
+              
+              try {
+                  const result = await imageToItemConversion({ photoDataUri: base64String });
+                  
+                  if (result.items && result.items.length > 0) {
+                      result.items.forEach(item => {
+                          // Clean up price string (remove currency symbols etc)
+                          const price = parseInt(item.price.replace(/[^0-9]/g, ''), 10) || 0;
+                          append({
+                              name: item.name,
+                              price: price,
+                              images: [],
+                              attributes: [],
+                              maxQuantity: undefined
+                          });
+                      });
+                      toast({ title: "掃描成功！", description: `已新增 ${result.items.length} 個項目。` });
+                  } else {
+                      toast({ title: "無法辨識項目", description: "請嘗試更清晰的照片。", variant: "warning" });
+                  }
+              } catch (error) {
+                  console.error("AI Scan Error:", error);
+                  toast({ title: "掃描失敗", description: "AI 服務暫時無法使用。", variant: "destructive" });
+              }
+          };
+          reader.readAsDataURL(file);
+      } catch (error) {
+          console.error("File Reading Error:", error);
+          toast({ title: "讀取圖片失敗", variant: "destructive" });
+      } finally {
+          setIsScanning(false);
+          if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+  };
+
   
   const handleImageFilesChange = (event: React.ChangeEvent<HTMLInputElement>, itemIndex: number) => {
     const files = event.target.files;
@@ -268,6 +354,7 @@ export default function CreateOrderForm() {
       participantIds: [],
       ...(deadline && { deadline }),
       ...(data.targetAmount != null && !isNaN(data.targetAmount) && { targetAmount: data.targetAmount }),
+      ...(data.maxParticipants != null && !isNaN(data.maxParticipants) && { maxParticipants: data.maxParticipants }),
     };
 
     try {
@@ -326,10 +413,10 @@ export default function CreateOrderForm() {
     return <div>讀取中...</div>;
   }
 
-  if (!user) {
-    router.push('/login');
-    return null;
-  }
+  // if (!user) {
+  //   router.push('/login');
+  //   return null;
+  // }
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="grid gap-4 md:gap-8">
@@ -390,11 +477,20 @@ export default function CreateOrderForm() {
                   </div>
                 </div>
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="targetAmount">目標金額 (選填)</Label>
-                 <div className="relative">
-                    <DollarSign className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input id="targetAmount" type="number" placeholder="1000" className="pl-8" step="1" {...register('targetAmount', { valueAsNumber: true })} />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="targetAmount">目標金額 (選填)</Label>
+                  <div className="relative">
+                      <DollarSign className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input id="targetAmount" type="number" placeholder="1000" className="pl-8" step="1" {...register('targetAmount', { valueAsNumber: true })} />
+                  </div>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="maxParticipants">人數上限 (選填)</Label>
+                  <div className="relative">
+                      <Package className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input id="maxParticipants" type="number" placeholder="50" className="pl-8" step="1" {...register('maxParticipants', { valueAsNumber: true })} />
+                  </div>
                 </div>
               </div>
             </div>
@@ -526,15 +622,61 @@ export default function CreateOrderForm() {
               </Card>
             )
           })}
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() => append({ name: '', price: 0, images: [], attributes: [], maxQuantity: undefined })}
-          >
-            <Plus className="mr-2 h-4 w-4" /> 新增項目
-          </Button>
+          <div className="flex gap-2">
+            <Button
+                type="button"
+                variant="secondary"
+                onClick={() => append({ name: '', price: 0, images: [], attributes: [], maxQuantity: undefined })}
+            >
+                <Plus className="mr-2 h-4 w-4" /> 新增項目
+            </Button>
+            
+            <div className="relative">
+                <input
+                    type="file"
+                    accept="image/*"
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    onChange={handleScanMenu}
+                    disabled={isScanning}
+                    ref={fileInputRef}
+                />
+                <Button type="button" variant="outline" disabled={isScanning}>
+                    {isScanning ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4 text-purple-500" />}
+                    {isScanning ? '分析中...' : 'AI 掃描菜單'}
+                </Button>
+            </div>
+            
+            <Button type="button" variant="outline" onClick={() => setIsUrlDialogOpen(true)}>
+                <LinkIcon className="mr-2 h-4 w-4 text-blue-500" /> 貼上網址
+            </Button>
+          </div>
         </CardContent>
       </Card>
+
+      <Dialog open={isUrlDialogOpen} onOpenChange={setIsUrlDialogOpen}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>從網址匯入商品</DialogTitle>
+                <DialogDescription>
+                    貼上商品網址（例如 Uber Eats, 蝦皮），我們會嘗試抓取商品名稱與價格。
+                </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+                <Input 
+                    placeholder="https://..." 
+                    value={urlInput}
+                    onChange={(e) => setUrlInput(e.target.value)}
+                />
+            </div>
+            <DialogFooter>
+                <Button variant="outline" onClick={() => setIsUrlDialogOpen(false)}>取消</Button>
+                <Button onClick={handleScrapeUrl} disabled={isScraping || !urlInput}>
+                    {isScraping ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    {isScraping ? '抓取中...' : '匯入'}
+                </Button>
+            </DialogFooter>
+      </DialogContent>
+      </Dialog>
       
       <div className="flex justify-end">
         <Button size="lg" type="submit" disabled={fields.length === 0 || isUserLoading}>建立訂單</Button>
