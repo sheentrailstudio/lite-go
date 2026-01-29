@@ -65,6 +65,34 @@ const renderSelectedAttributes = (cartItem: CartItem) => {
   return <span className="text-xs text-muted-foreground">({attributeText})</span>;
 };
 
+// 抽離出的選單元件，避免 JSX 嵌套過深導致解析錯誤
+const ParticipantActionMenu = ({ 
+    userId, 
+    onEdit 
+}: { 
+    userId: string, 
+    onEdit: (id: string) => void 
+}) => {
+    return (
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="h-8 w-8 p-0">
+                    <MoreHorizontal className="h-4 w-4" />
+                </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+                <DropdownMenuLabel>管理訂單</DropdownMenuLabel>
+                <DropdownMenuItem onClick={() => onEdit(userId)}>
+                    <Edit className="mr-2 h-4 w-4" /> 修改內容
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="text-destructive">
+                    踢出名單
+                </DropdownMenuItem>
+            </DropdownMenuContent>
+        </DropdownMenu>
+    );
+};
 
 function OrderDetailsDisplay({ order, onJoinOrder }: { order: Order, onJoinOrder: () => void }) {
   const { toast } = useToast();
@@ -324,23 +352,7 @@ function OrderDetailsDisplay({ order, onJoinOrder }: { order: Order, onJoinOrder
                                 <div className="flex items-center gap-4">
                                     <p className="font-semibold text-sm">${p.totalCost}</p>
                                     {isInitiator && (
-                                         <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" className="h-8 w-8 p-0">
-                                                    <MoreHorizontal className="h-4 w-4" />
-                                                </DropdownMenuTrigger>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                                <DropdownMenuLabel>管理訂單</DropdownMenuLabel>
-                                                <DropdownMenuItem onClick={() => handleEditParticipant(p.user.id)}>
-                                                    <Edit className="mr-2 h-4 w-4" /> 修改內容
-                                                </DropdownMenuItem>
-                                                <DropdownMenuSeparator />
-                                                <DropdownMenuItem className="text-destructive">
-                                                    踢出名單
-                                                </DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
+                                         <ParticipantActionMenu userId={p.user.id} onEdit={handleEditParticipant} />
                                     )}
                                 </div>
                             </div>
