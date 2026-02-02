@@ -9,7 +9,8 @@
     "build": "NODE_ENV=production next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest"
   },
   "dependencies": {
     "@genkit-ai/google-genai": "^1.20.0",
@@ -44,7 +45,7 @@
     "firebase": "^11.9.1",
     "genkit": "^1.20.0",
     "lucide-react": "^0.475.0",
-    "next": "15.5.9",
+    "next": "^15.5.11",
     "patch-package": "^8.0.0",
     "react": "^19.2.1",
     "react-day-picker": "^9.11.3",
@@ -57,12 +58,18 @@
   },
   "devDependencies": {
     "@tailwindcss/typography": "^0.5.13",
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
     "@types/node": "^20",
     "@types/react": "^19.2.1",
     "@types/react-dom": "^19.2.1",
+    "@vitejs/plugin-react": "^5.1.2",
     "genkit-cli": "^1.20.0",
+    "jsdom": "^27.4.0",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.0.18"
   }
 }
