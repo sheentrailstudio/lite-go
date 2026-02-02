@@ -193,10 +193,16 @@ function OptionsFieldArray({ itemIndex, attrIndex, control }: { itemIndex: numbe
 }
 
 
+import { imageToItemConversion } from '@/ai/flows/image-to-item-conversion';
+import { webLinkItemExtraction } from '@/ai/flows/web-link-item-extraction';
+import { Loader2, ScanLine, Link as LinkIcon } from 'lucide-react';
+
 export default function CreateOrderForm() {
   const router = useRouter();
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
+  const [isAnalyzingMenu, setIsAnalyzingMenu] = useState(false);
+  const [isAnalyzingUrl, setIsAnalyzingUrl] = useState(false);
 
   const { register, control, handleSubmit, setValue, getValues, watch } = useForm<FormValues>({
     defaultValues: {
@@ -213,6 +219,87 @@ export default function CreateOrderForm() {
     name: 'items',
   });
   
+  const handleUrlImport = async () => {
+      const url = prompt("請輸入商品網址：");
+      if (!url) return;
+      
+      setIsAnalyzingUrl(true);
+      try {
+          const result = await webLinkItemExtraction({ url });
+          if (result) {
+               // Remove empty initial item if exists
+               const currentItems = getValues('items');
+               if (currentItems.length === 1 && !currentItems[0].name && !currentItems[0].price) {
+                    remove(0);
+               }
+               
+               append({
+                  name: result.name,
+                  price: parseInt(result.price.replace(/[^0-9]/g, ''), 10) || 0,
+                  images: result.imageUrl ? [result.imageUrl] : [],
+                  attributes: [],
+                  maxQuantity: undefined
+               });
+               toast({ title: "網址解析成功", description: `已新增商品：${result.name}` });
+          }
+      } catch (error) {
+          console.error("URL Analysis failed:", error);
+          toast({ title: "解析失敗", description: "無法從網址讀取商品資訊。請確認網址是否公開。", variant: "destructive" });
+      } finally {
+          setIsAnalyzingUrl(false);
+      }
+  };
+
+  const handleMenuUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsAnalyzingMenu(true);
+    try {
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64Data = reader.result as string;
+        try {
+            const result = await imageToItemConversion({ photoDataUri: base64Data });
+            
+            if (result.items && result.items.length > 0) {
+                const newItems = result.items.map(item => ({
+                    name: item.name,
+                    price: parseInt(item.price.replace(/[^0-9]/g, ''), 10) || 0,
+                    images: [], // Optionally, we could attach the menu crop here if the API supported it
+                    attributes: [],
+                    maxQuantity: undefined
+                }));
+                
+                // If the form currently has only one empty item, replace it
+                const currentItems = getValues('items');
+                if (currentItems.length === 1 && !currentItems[0].name && !currentItems[0].price) {
+                    remove(0);
+                }
+
+                append(newItems);
+                toast({ 
+                    title: "菜單解析成功", 
+                    description: `已新增 ${result.items.length} 個項目。` 
+                });
+            } else {
+                toast({ title: "未偵測到項目", description: "無法從圖片中辨識出菜單項目。", variant: "warning" });
+            }
+        } catch (error) {
+            console.error("AI Analysis failed:", error);
+            toast({ title: "解析失敗", description: "請確認圖片清晰度或稍後再試。", variant: "destructive" });
+        } finally {
+            setIsAnalyzingMenu(false);
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch (error) {
+       console.error("File reading failed:", error);
+       setIsAnalyzingMenu(false);
+    }
+    event.target.value = ''; // Reset input
+  };
+
   const handleImageFilesChange = (event: React.ChangeEvent<HTMLInputElement>, itemIndex: number) => {
     const files = event.target.files;
     if (!files) return;
@@ -526,13 +613,42 @@ export default function CreateOrderForm() {
               </Card>
             )
           })}
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() => append({ name: '', price: 0, images: [], attributes: [], maxQuantity: undefined })}
-          >
-            <Plus className="mr-2 h-4 w-4" /> 新增項目
-          </Button>
+          <div className="flex gap-2">
+            <Button
+                type="button"
+                variant="secondary"
+                onClick={() => append({ name: '', price: 0, images: [], attributes: [], maxQuantity: undefined })}
+            >
+                <Plus className="mr-2 h-4 w-4" /> 新增項目
+            </Button>
+            <div className="relative">
+                <input
+                    id="menu-upload"
+                    type="file"
+                    accept="image/*"
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    onChange={handleMenuUpload}
+                    disabled={isAnalyzingMenu}
+                />
+                <Button type="button" variant="outline" disabled={isAnalyzingMenu}>
+                    {isAnalyzingMenu ? (
+                        <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            解析中...
+                        </>
+                    ) : (
+                        <>
+                            <ScanLine className="mr-2 h-4 w-4" />
+                            由菜單圖片匯入 (AI)
+                        </>
+                    )}
+                </Button>
+            </div>
+            <Button type="button" variant="outline" onClick={handleUrlImport} disabled={isAnalyzingUrl}>
+                 {isAnalyzingUrl ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <LinkIcon className="mr-2 h-4 w-4" />}
+                 由網址匯入 (AI)
+            </Button>
+          </div>
         </CardContent>
       </Card>
       

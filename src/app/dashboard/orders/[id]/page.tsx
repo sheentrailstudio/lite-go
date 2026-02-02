@@ -32,6 +32,7 @@ import {
   CarouselPrevious,
 } from "@/components/ui/carousel"
 import OrderStatusTracker from '@/components/orders/order-status-tracker';
+import SummaryView from '@/components/orders/summary-view';
 import { useDoc, useCollection, useUser, useFirestore, useMemoFirebase, updateDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase';
 import { doc, collection, getDoc } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
@@ -285,6 +286,9 @@ function OrderDetailsDisplay({ order, onJoinOrder }: { order: Order, onJoinOrder
       </div>
 
       <div className="grid auto-rows-max items-start gap-4 lg:gap-8">
+        {user?.uid === order.initiatorId && (
+            <SummaryView order={order} />
+        )}
         <Card>
           <CardHeader>
             <CardTitle>訂單摘要</CardTitle>
