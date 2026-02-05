@@ -47,6 +47,7 @@ import {
 } from "@/components/ui/carousel"
 import OrderStatusTracker from '@/components/orders/order-status-tracker';
 import SummaryView from '@/components/orders/summary-view';
+import ExportView from '@/components/orders/export-view';
 import JoinOrderDialog from '@/components/orders/join-order-dialog';
 import { useDoc, useCollection, useUser, useFirestore, useMemoFirebase, updateDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase';
 import { doc, collection, getDoc } from 'firebase/firestore';
@@ -284,7 +285,10 @@ function OrderDetailsDisplay({
       <div className="space-y-6">
         <div className="sticky top-24 space-y-6">
             {user?.uid === order.initiatorId && (
-                <SummaryView order={order} />
+                <div className="space-y-6">
+                    <SummaryView order={order} />
+                    <ExportView order={order} />
+                </div>
             )}
             
             <Card className="overflow-hidden border-none shadow-xl ring-1 ring-black/5">
