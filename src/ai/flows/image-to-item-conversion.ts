@@ -40,12 +40,18 @@ const prompt = ai.definePrompt({
   name: 'imageToItemConversionPrompt',
   input: {schema: ImageToItemConversionInputSchema},
   output: {schema: ImageToItemConversionOutputSchema},
-  prompt: `您是從圖片中擷取菜單項目及其價格的專家。
+  prompt: `您是一位專業的選單與價目表解析專家。
 
-  分析圖片並擷取項目名稱及其對應的價格。以 JSON 格式返回資料。
-  請勿包含任何描述，僅包含項目名稱和價格。
+  您的任務是從提供的圖片中精確擷取所有商品項目及其價格。
+  
+  【指令】
+  1. 仔細掃描圖片中的所有文字。
+  2. 辨識出具有「名稱」與「金額」關係的配對。
+  3. 如果一個商品有多個尺寸（例如 M: 30, L: 45），請將其拆分為不同的項目（例如："茉莉綠茶 (M)", "茉莉綠茶 (L)"）。
+  4. 僅返回純粹的 JSON 列表，不包含任何額外解釋或 Markdown 標籤。
+  5. 確保價格僅包含數字。
 
-  圖片：{{media url=photoDataUri}}
+  圖片內容：{{media url=photoDataUri}}
   `,
 });
 

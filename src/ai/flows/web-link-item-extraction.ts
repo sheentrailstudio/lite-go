@@ -27,12 +27,17 @@ const prompt = ai.definePrompt({
   name: 'webLinkItemExtractionPrompt',
   input: { schema: z.object({ htmlContent: z.string() }) },
   output: { schema: WebLinkItemExtractionOutputSchema },
-  prompt: `您是從網頁 HTML 中擷取商品資訊的專家。
+  prompt: `您是一位專精於電子商務數據擷取的專家。
 
-  分析以下 HTML 內容並擷取商品名稱、價格、描述和圖片連結。
-  請忽略導覽列、頁尾和廣告內容，專注於主要商品資訊。
+  分析以下從網頁擷取的內容（包含 Meta 標籤與 HTML 片段），並精確提取商品的關鍵資訊。
 
-  HTML 內容：
+  【目標】
+  - 商品名稱 (name)
+  - 價格 (price): 僅提取數字。
+  - 描述 (description): 簡短的產品摘要。
+  - 圖片連結 (imageUrl): 優先尋找 og:image 或主要商品圖。
+
+  【擷取內容】
   {{htmlContent}}
   `,
 });
@@ -47,23 +52,32 @@ const webLinkItemExtractionFlow = ai.defineFlow(
     try {
         const response = await fetch(input.url, {
             headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-            }
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            },
+            next: { revalidate: 3600 }
         });
 
         if (!response.ok) {
-            throw new Error(`Failed to fetch URL: ${response.statusText}`);
+            throw new Error(`無法讀取網址: ${response.status} ${response.statusText}`);
         }
 
         const html = await response.text();
         
-        // Truncate HTML to avoid token limits if necessary (naive approach)
-        const truncatedHtml = html.slice(0, 50000); 
+        // 更聰明的 HTML 預處理：只保留 head (含有 meta tags) 和 body 的前一小部分
+        const headMatch = html.match(/<head[^>]*>([\s\S]*?)<\/head>/i);
+        const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+        
+        const relevantHtml = `
+            ${headMatch ? headMatch[1] : ''}
+            ${bodyMatch ? bodyMatch[1].slice(0, 20000) : html.slice(0, 25000)}
+        `;
 
-        const { output } = await prompt({ htmlContent: truncatedHtml });
+        const { output } = await prompt({ htmlContent: relevantHtml });
         return output!;
     } catch (error) {
-        throw new Error(`Extraction failed: ${error instanceof Error ? error.message : String(error)}`);
+        console.error("Link Extraction Detail Error:", error);
+        throw new Error(`擷取失敗：這可能是因為該網站阻擋了自動化存取，或者網址格式不正確。`);
     }
   }
 );
