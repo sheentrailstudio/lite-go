@@ -6,55 +6,16 @@ import { Button } from '../ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '../ui/card';
 import { Download, FileSpreadsheet, Copy, Check } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { generateOrderCSV } from '@/lib/utils';
 
 export default function ExportView({ order }: { order: Order }) {
   const [isExporting, setIsExporting] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const generateCSV = () => {
-    // Header
-    const headers = ['參與者', '項目', '數量', '單價', '選項', '小計', '付款狀態'];
-    const rows = [];
-
-    order.participants.forEach(p => {
-      p.items.forEach(ci => {
-        const attrText = ci.selectedAttributes 
-          ? Object.entries(ci.selectedAttributes).map(([k, v]) => `${k}: ${v}`).join('; ')
-          : '';
-        
-        let price = ci.item.price;
-        if (ci.selectedAttributes) {
-            Object.entries(ci.selectedAttributes).forEach(([attrId, val]) => {
-                const attr = ci.item.attributes?.find(a => a.id === attrId);
-                const opt = attr?.options.find(o => o.value === val);
-                if (opt) price += opt.price;
-            });
-        }
-
-        rows.push([
-          p.user.name,
-          ci.item.name,
-          ci.quantity,
-          ci.item.price,
-          `"${attrText}"`,
-          price * ci.quantity,
-          p.paid ? '已付' : '未付'
-        ]);
-      });
-    });
-
-    const csvContent = [
-      headers.join(','),
-      ...rows.map(r => r.join(','))
-    ].join('\n');
-
-    return csvContent;
-  };
-
   const handleDownloadCSV = () => {
     setIsExporting(true);
     try {
-      const csvData = generateCSV();
+      const csvData = generateOrderCSV(order);
       const blob = new Blob(["\uFEFF" + csvData], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -72,7 +33,7 @@ export default function ExportView({ order }: { order: Order }) {
   };
 
   const handleCopySummary = () => {
-      const csvData = generateCSV();
+      const csvData = generateOrderCSV(order);
       navigator.clipboard.writeText(csvData);
       setCopied(true);
       toast({ title: "已複製到剪貼簿" });

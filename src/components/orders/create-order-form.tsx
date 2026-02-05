@@ -15,7 +15,7 @@ import { Textarea } from '../ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Calendar } from '../ui/calendar';
 import { CalendarIcon, Clock, DollarSign, ImageUp, Plus, Trash2, X, Package, ChevronDown } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, parseNumericPrice } from '@/lib/utils';
 import { format } from 'date-fns';
 import { toast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
@@ -265,7 +265,7 @@ export default function CreateOrderForm() {
             if (result.items && result.items.length > 0) {
                 const newItems = result.items.map(item => ({
                     name: item.name,
-                    price: parseInt(item.price.replace(/[^0-9]/g, ''), 10) || 0,
+                    price: parseNumericPrice(item.price),
                     images: [], // Optionally, we could attach the menu crop here if the API supported it
                     attributes: [],
                     maxQuantity: undefined

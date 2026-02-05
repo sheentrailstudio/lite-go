@@ -2,6 +2,7 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
+import { getRelevantHtml } from '@/lib/utils';
 
 const WebLinkItemExtractionInputSchema = z.object({
   url: z.string().url().describe("商品的網頁連結"),
@@ -63,15 +64,7 @@ const webLinkItemExtractionFlow = ai.defineFlow(
         }
 
         const html = await response.text();
-        
-        // 更聰明的 HTML 預處理：只保留 head (含有 meta tags) 和 body 的前一小部分
-        const headMatch = html.match(/<head[^>]*>([\s\S]*?)<\/head>/i);
-        const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-        
-        const relevantHtml = `
-            ${headMatch ? headMatch[1] : ''}
-            ${bodyMatch ? bodyMatch[1].slice(0, 20000) : html.slice(0, 25000)}
-        `;
+        const relevantHtml = getRelevantHtml(html);
 
         const { output } = await prompt({ htmlContent: relevantHtml });
         return output!;
