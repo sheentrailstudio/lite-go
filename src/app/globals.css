@@ -4,43 +4,34 @@
 
 @layer base {
   :root {
-    /* Sophisticated Pastel/Glass Palette */
-    --background: 20 20% 98%;
+    --background: 0 0% 100%;
     --foreground: 240 10% 3.9%;
     --card: 0 0% 100%;
     --card-foreground: 240 10% 3.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 240 10% 3.9%;
-    
-    /* Brand Teal with more "Sheen" */
     --primary: 169 44% 55%;
     --primary-foreground: 0 0% 100%;
-    
-    --secondary: 169 20% 96%;
-    --secondary-foreground: 169 60% 20%;
-    
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 240 5.9% 10%;
     --muted: 240 4.8% 95.9%;
     --muted-foreground: 240 3.8% 46.1%;
-    
     --accent: 35 100% 64%;
     --accent-foreground: 240 5.9% 10%;
-    
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
-    
     --border: 240 5.9% 90%;
     --input: 240 5.9% 90%;
     --ring: 169 44% 55%;
-    
-    --radius: 1.25rem; /* Larger, softer corners */
+    --radius: 1rem;
   }
 
   .dark {
-    --background: 240 10% 4%;
+    --background: 240 10% 3.9%;
     --foreground: 0 0% 98%;
-    --card: 240 10% 6%;
+    --card: 240 10% 3.9%;
     --card-foreground: 0 0% 98%;
-    --popover: 240 10% 6%;
+    --popover: 240 10% 3.9%;
     --popover-foreground: 0 0% 98%;
     --primary: 169 44% 55%;
     --primary-foreground: 240 10% 3.9%;
@@ -49,7 +40,9 @@
     --muted: 240 3.7% 15.9%;
     --muted-foreground: 240 5% 64.9%;
     --accent: 35 100% 64%;
-    --accent-foreground: 0 0% 98%;
+    --accent-foreground: 240 5.9% 10%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
     --border: 240 3.7% 15.9%;
     --input: 240 3.7% 15.9%;
     --ring: 169 44% 55%;
@@ -61,12 +54,11 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground antialiased selection:bg-primary/20;
+    @apply bg-background text-foreground antialiased;
     font-feature-settings: "cv11", "ss01";
   }
 }
 
-/* --- The Sheen Trail Atmosphere --- */
 .app-bg {
   position: fixed;
   top: 0;
@@ -75,35 +67,28 @@
   height: 100%;
   z-index: -1;
   background: 
-    radial-gradient(circle at 100% 0%, hsla(169, 44%, 61%, 0.08) 0%, transparent 40%),
-    radial-gradient(circle at 0% 100%, hsla(35, 100%, 64%, 0.05) 0%, transparent 40%);
-  background-attachment: fixed;
+    radial-gradient(circle at 100% 0%, rgba(112, 197, 181, 0.08) 0%, transparent 40%),
+    radial-gradient(circle at 0% 100%, rgba(255, 179, 71, 0.05) 0%, transparent 40%);
+  pointer-events: none;
 }
 
-/* Glassmorphism Utilities */
 .glass {
-  @apply bg-white/70 backdrop-blur-xl border border-white/20 shadow-sm;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .dark .glass {
-  @apply bg-black/40 backdrop-blur-xl border-white/5 shadow-none;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-/* Soft Hover Shadows */
 .hover-lift {
-  @apply transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)];
-}
-.hover-lift:hover {
-  @apply -translate-y-1 shadow-2xl shadow-primary/10;
+  transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.5s ease;
 }
 
-/* Premium Scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
-}
-::-webkit-scrollbar-track {
-  @apply bg-transparent;
-}
-::-webkit-scrollbar-thumb {
-  @apply bg-muted-foreground/20 rounded-full hover:bg-muted-foreground/40 transition-colors;
+.hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
 }
