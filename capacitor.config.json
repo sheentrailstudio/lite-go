@@ -1,0 +1,7 @@
+{
+  "name": "lite-go",
+  "appId": "com.sheentrailstudio.litego",
+  "appName": "Lite Go",
+  "webDir": "out",
+  "bundledWebRuntime": false
+}
