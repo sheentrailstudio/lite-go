@@ -21,6 +21,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import { 
     Clock, 
     DollarSign, 
@@ -31,20 +32,13 @@ import {
     Lock, 
     Loader2, 
     CheckCircle2, 
-    XCircle,
     Archive,
     Ban
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
+import { cn } from '@/lib/utils';
 import type { Item, User, CartItem, Order, GroupBuyOrderDocument, Participant, StatusUpdate } from '@/lib/definitions';
 import { useToast } from '@/hooks/use-toast';
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
-} from "@/components/ui/carousel"
 import OrderStatusTracker from '@/components/orders/order-status-tracker';
 import SummaryView from '@/components/orders/summary-view';
 import ExportView from '@/components/orders/export-view';
@@ -91,23 +85,17 @@ function OrderDetailsDisplay({
 
   const isInitiator = user?.uid === order.initiatorId;
   const isParticipant = order.participants.some(p => p.id === user?.uid);
-  const isPublic = order.visibility === 'public';
-  
-  // Visibility Logic: If private, only initiator, participants, or people with link can see.
-  // Jill's specific request: "If public, everyone can see details."
   
   const orderUrl = typeof window !== 'undefined' ? window.location.href : '';
 
   const handleShare = () => {
     navigator.clipboard.writeText(orderUrl).then(() => {
         toast({
-            title: '已複製短網址！',
+            title: '已複製連結！',
             description: '訂單的分享連結已複製到您的剪貼簿。',
         });
     });
   };
-  
-  const isParticipant = order.participants.some(p => p.id === user?.uid);
 
   const totalCost = order.participants.reduce((sum, p) => sum + p.totalCost, 0);
 
@@ -134,7 +122,7 @@ function OrderDetailsDisplay({
     <div className="grid gap-6 md:grid-cols-[1fr_300px] lg:gap-10">
       <div className="space-y-6">
         {/* Hero Card */}
-        <div className="overflow-hidden rounded-2xl border bg-card shadow-sm">
+        <div className="overflow-hidden rounded-2xl border bg-card shadow-sm text-foreground">
             <div className="relative h-48 w-full">
                 <Image
                     src={order.image?.src || `https://picsum.photos/seed/${order.id}/800/400`}
@@ -142,7 +130,7 @@ function OrderDetailsDisplay({
                     fill
                     className="object-cover"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
                 <div className="absolute bottom-6 left-6 right-6 flex items-end justify-between text-white">
                     <div>
                         <h1 className="text-3xl font-black tracking-tight">{order.name}</h1>
@@ -291,7 +279,7 @@ function OrderDetailsDisplay({
                 </div>
             )}
             
-            <Card className="overflow-hidden border-none shadow-xl ring-1 ring-black/5">
+            <Card className="overflow-hidden border-none shadow-xl ring-1 ring-black/5 bg-card text-foreground">
                 <CardHeader className="bg-primary/10 border-b border-primary/10">
                     <CardTitle className="text-lg">結帳摘要</CardTitle>
                     <CardDescription>目前的團購總額</CardDescription>
@@ -324,7 +312,7 @@ function OrderDetailsDisplay({
                 </CardFooter>
             </Card>
 
-            <Card className="border-none bg-muted/30 shadow-sm">
+            <Card className="border-none bg-muted/30 shadow-sm text-foreground">
                 <CardHeader className="p-4">
                     <CardTitle className="text-sm">分享團購</CardTitle>
                 </CardHeader>
