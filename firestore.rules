@@ -43,10 +43,13 @@ service cloud.firestore {
       }
 
       match /participants/{userId} {
-        allow get: if isSignedIn() && (isOrderInitiator() || isParticipant());
-        allow list: if isSignedIn() && (isOrderInitiator() || isParticipant());
-        // A user can create/update/delete their own participation document.
-        allow create, update, delete: if isOwner(userId);
+        allow get, list: if isPublicOrder() || (isSignedIn() && (isOrderInitiator() || isParticipant()));
+        
+        // A user can create their own participation.
+        // The initiator can update the 'paid' status of any participant.
+        allow create: if isOwner(userId);
+        allow update: if isOwner(userId) || (isSignedIn() && isOrderInitiator());
+        allow delete: if isOwner(userId);
       }
       
       match /statusUpdates/{statusUpdateId} {

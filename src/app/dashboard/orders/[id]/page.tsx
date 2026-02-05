@@ -20,7 +20,21 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
-import { Clock, DollarSign, Users, Package, Share2, Globe, Lock, Loader2 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { 
+    Clock, 
+    DollarSign, 
+    Users, 
+    Package, 
+    Share2, 
+    Globe, 
+    Lock, 
+    Loader2, 
+    CheckCircle2, 
+    XCircle,
+    Archive,
+    Ban
+} from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import type { Item, User, CartItem, Order, GroupBuyOrderDocument, Participant, StatusUpdate } from '@/lib/definitions';
 import { useToast } from '@/hooks/use-toast';
@@ -58,10 +72,29 @@ const renderSelectedAttributes = (cartItem: CartItem) => {
 };
 
 
-function OrderDetailsDisplay({ order, onJoinOrder, isJoining }: { order: Order, onJoinOrder: (items: CartItem[]) => void, isJoining: boolean }) {
+function OrderDetailsDisplay({ 
+  order, 
+  onJoinOrder, 
+  onUpdatePayment, 
+  onUpdateStatus,
+  isJoining 
+}: { 
+  order: Order, 
+  onJoinOrder: (items: CartItem[]) => void, 
+  onUpdatePayment: (userId: string, paid: boolean) => void,
+  onUpdateStatus: (status: 'open' | 'closed' | 'archived') => void,
+  isJoining: boolean 
+}) {
   const { toast } = useToast();
   const { user } = useUser();
 
+  const isInitiator = user?.uid === order.initiatorId;
+  const isParticipant = order.participants.some(p => p.id === user?.uid);
+  const isPublic = order.visibility === 'public';
+  
+  // Visibility Logic: If private, only initiator, participants, or people with link can see.
+  // Jill's specific request: "If public, everyone can see details."
+  
   const orderUrl = typeof window !== 'undefined' ? window.location.href : '';
 
   const handleShare = () => {
@@ -115,10 +148,32 @@ function OrderDetailsDisplay({ order, onJoinOrder, isJoining }: { order: Order, 
                         <p className="mt-1 text-sm opacity-90">{order.description}</p>
                     </div>
                      <div className="flex gap-2">
-                        <Badge className="bg-primary text-primary-foreground border-none px-3 py-1">{order.status === 'open' ? '進行中' : '已結束'}</Badge>
+                        <Badge className={cn(
+                            "border-none px-3 py-1",
+                            order.status === 'open' ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                        )}>
+                            {order.status === 'open' ? '進行中' : order.status === 'closed' ? '已截單' : '已封存'}
+                        </Badge>
                     </div>
                 </div>
             </div>
+            {isInitiator && (
+                <div className="flex items-center gap-2 p-4 bg-muted/10 border-t">
+                    <span className="text-xs font-bold text-muted-foreground uppercase ml-2 mr-auto">管理員工具</span>
+                    {order.status === 'open' ? (
+                        <Button size="sm" variant="outline" className="h-8 border-destructive/30 text-destructive hover:bg-destructive/10" onClick={() => onUpdateStatus('closed')}>
+                            <Ban className="h-3.5 w-3.5 mr-1.5" /> 停止收單
+                        </Button>
+                    ) : order.status === 'closed' ? (
+                        <Button size="sm" variant="outline" className="h-8" onClick={() => onUpdateStatus('open')}>
+                            <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" /> 重新開啟
+                        </Button>
+                    ) : null}
+                    <Button size="sm" variant="outline" className="h-8" onClick={() => onUpdateStatus('archived')}>
+                        <Archive className="h-3.5 w-3.5 mr-1.5" /> 封存訂單
+                    </Button>
+                </div>
+            )}
             <div className="grid grid-cols-4 divide-x border-t bg-muted/20">
                 {[
                     { label: '參與者', value: order.participants.length, icon: Users },
@@ -187,12 +242,25 @@ function OrderDetailsDisplay({ order, onJoinOrder, isJoining }: { order: Order, 
                 order.participants.map(p => (
                 <div key={p.user.id} className="flex items-start justify-between border-b pb-6 last:border-0 last:pb-0">
                     <div className="flex items-center gap-4">
+                    {isInitiator && (
+                        <div className="flex flex-col items-center gap-1 mr-1">
+                            <Checkbox 
+                                id={`paid-${p.id}`} 
+                                checked={p.paid} 
+                                onCheckedChange={(checked) => onUpdatePayment(p.id, checked as boolean)}
+                            />
+                            <Label htmlFor={`paid-${p.id}`} className="text-[10px] text-muted-foreground uppercase font-bold">已付</Label>
+                        </div>
+                    )}
                     <Avatar className="h-12 w-12 border-2 border-background ring-2 ring-muted">
                         <AvatarImage src={p.user.avatarUrl} />
                         <AvatarFallback className="bg-primary/10 text-primary">{p.user.name.charAt(0)}</AvatarFallback>
                     </Avatar>
                     <div>
-                        <p className="font-bold">{p.user.name}</p>
+                        <div className="flex items-center gap-2">
+                            <p className="font-bold">{p.user.name}</p>
+                            {p.paid && <Badge variant="secondary" className="h-4 px-1.5 text-[9px] bg-green-100 text-green-700 border-none">已付款</Badge>}
+                        </div>
                         <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1">
                             {p.items.map((cartItem, idx) => (
                                 <span key={`${cartItem.item.id}-${idx}`} className="text-xs text-muted-foreground bg-muted/50 rounded-md px-2 py-0.5">
@@ -369,9 +437,10 @@ export default function OrderDetailsPage({
              return sum + itemPrice * ci.quantity;
         }, 0);
 
-        const participantData = {
+        const participantData: Omit<Participant, 'user'> = {
           id: user.uid,
           totalCost,
+          paid: false,
           items: items.map(ci => ({
             itemId: ci.item.id,
             itemName: ci.item.name,
@@ -389,12 +458,44 @@ export default function OrderDetailsPage({
         await updateDocumentNonBlocking(doc(firestore, 'groupBuyOrders', id), { participantIds: newParticipantIds });
         
         toast({ title: "成功加入團購！" });
-        // Component will re-render and composeOrder will re-run via Firebase listener
     } catch (error) {
         console.error("Error joining order:", error);
         toast({ title: "加入失敗", description: "請稍後再試。", variant: "destructive" });
     } finally {
         setIsJoining(false);
+    }
+  };
+
+  const handleUpdatePayment = async (userId: string, paid: boolean) => {
+    if (!firestore || !id) return;
+    try {
+        await updateDocumentNonBlocking(doc(firestore, 'groupBuyOrders', id, 'participants', userId), { paid });
+        toast({ title: paid ? "標記為已付款" : "標記為未付款" });
+    } catch (error) {
+        toast({ title: "更新失敗", variant: "destructive" });
+    }
+  };
+
+  const handleUpdateStatus = async (status: 'open' | 'closed' | 'archived') => {
+    if (!firestore || !id) return;
+    try {
+        await updateDocumentNonBlocking(doc(firestore, 'groupBuyOrders', id), { status });
+        
+        // Also add a status update timeline entry
+        const statusMessages = {
+            open: '訂單已重新開啟，歡迎加入！',
+            closed: '團主已停止收單，正在處理中。',
+            archived: '訂單已封存。'
+        };
+        
+        await setDocumentNonBlocking(doc(collection(firestore, 'groupBuyOrders', id, 'statusUpdates')), {
+            message: statusMessages[status],
+            createdAt: new Date().toISOString(),
+        }, {});
+        
+        toast({ title: "訂單狀態已更新" });
+    } catch (error) {
+        toast({ title: "更新失敗", variant: "destructive" });
     }
   };
 
@@ -413,6 +514,8 @@ export default function OrderDetailsPage({
         <OrderDetailsDisplay 
             order={composedOrder} 
             onJoinOrder={handleJoinOrder} 
+            onUpdatePayment={handleUpdatePayment}
+            onUpdateStatus={handleUpdateStatus}
             isJoining={isJoining} 
         />
     </div>

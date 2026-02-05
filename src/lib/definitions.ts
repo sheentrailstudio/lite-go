@@ -47,6 +47,7 @@ export type Participant = {
   user: User;
   items: CartItem[];
   totalCost: number;
+  paid?: boolean; // Payment status
 };
 
 export type StatusUpdate = {
