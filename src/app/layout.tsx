@@ -4,8 +4,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { FirebaseClientProvider } from '@/firebase';
 
 export const metadata: Metadata = {
-  title: 'Lite Go: 團購工具',
-  description: '一個簡單的團購工具。',
+  title: 'Lite Go｜團購從未如此簡單',
+  description: '智慧化、沈浸式的團購助手。讓開團與跟團像點餐一樣簡單。',
 };
 
 export default function RootLayout({
@@ -18,9 +18,10 @@ export default function RootLayout({
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&family=PT+Sans:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet" />
+        <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@100;300;400;500;700;900&family=Outfit:wght@100;300;400;500;700;900&display=swap" rel="stylesheet" />
       </head>
-      <body className="font-body antialiased">
+      <body className="font-sans antialiased">
+        <div className="app-bg" />
         <FirebaseClientProvider>
           {children}
         </FirebaseClientProvider>
